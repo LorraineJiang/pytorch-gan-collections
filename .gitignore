@@ -11,6 +11,6 @@ logs
 *.zip
 
 # data
-data
+dataset
 stats
 images

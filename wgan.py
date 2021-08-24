@@ -62,7 +62,7 @@ flags.DEFINE_string('pretrain', None, 'path to test model')
 flags.DEFINE_string('output', './outputs', 'path to output dir')
 flags.DEFINE_integer('num_images', 50000, 'the number of generated images')
 
-device = torch.device('cuda:0')
+device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
 
 def generate():
@@ -90,7 +90,7 @@ def generate():
 def train():
     if FLAGS.dataset == 'cifar10':
         dataset = datasets.CIFAR10(
-            './data', train=True, download=True,
+            './dataset/cifar10', train=True, download=False,
             transform=transforms.Compose([
                 transforms.RandomHorizontalFlip(),
                 transforms.ToTensor(),
@@ -98,7 +98,7 @@ def train():
             ]))
     if FLAGS.dataset == 'stl10':
         dataset = datasets.STL10(
-            './data', split='unlabeled', download=True,
+            './dataset/stl10', split='unlabeled', download=True,
             transform=transforms.Compose([
                 transforms.Resize((48, 48)),
                 transforms.RandomHorizontalFlip(),
