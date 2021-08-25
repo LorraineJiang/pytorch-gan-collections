@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader
 from .inception import InceptionV3
 
 
-# device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
 
 def get_inception_feature(
@@ -18,7 +18,7 @@ def get_inception_feature(
     batch_size: int = 50,
     use_torch: bool = False,
     verbose: bool = False,
-    device: torch.device = torch.device('cuda:0'),
+    device: torch.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu'),
 ) -> Union[torch.FloatTensor, np.ndarray]:
     """Calculate Inception Score and FID.
     For each image, only a forward propagation is required to
@@ -148,7 +148,7 @@ def calculate_frechet_inception_distance(
     sigma: np.ndarray,
     use_torch: bool = False,
     eps: float = 1e-6,
-    device: torch.device = torch.device('cuda:0'),
+    device: torch.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu'),
 ) -> float:
     if use_torch:
         m1 = torch.mean(acts, axis=0)

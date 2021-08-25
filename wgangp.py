@@ -1,7 +1,8 @@
 import os
-
+import sys
 import torch
 import torch.optim as optim
+import numpy as np
 from absl import flags, app
 from torchvision import datasets, transforms
 from torchvision.utils import make_grid, save_image
@@ -13,7 +14,7 @@ import source.models.wgangp as models
 import source.losses as losses
 from source.utils import generate_imgs, infiniteloop, set_seed
 
-
+'''----------------------------默认训练环境----------------------------'''
 net_G_models = {
     'res32': models.ResGenerator32,
     'res48': models.ResGenerator48,
@@ -55,7 +56,7 @@ flags.DEFINE_integer('sample_step', 500, "sample image every this steps")
 flags.DEFINE_integer('sample_size', 64, "sampling size of images")
 flags.DEFINE_string('logdir', './logs/WGANGP_CIFAR10_RES', 'logging folder')
 flags.DEFINE_bool('record', True, "record inception score and FID score")
-flags.DEFINE_string('fid_cache', './stats/cifar10_stats.npz', 'FID cache')
+# flags.DEFINE_string('fid_cache', './stats/cifar10_stats.npz', 'FID cache')
 # generate
 flags.DEFINE_bool('generate', False, 'generate images')
 flags.DEFINE_string('pretrain', None, 'path to test model')
@@ -64,6 +65,7 @@ flags.DEFINE_integer('num_images', 50000, 'the number of generated images')
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
+'''----------------------------生成图片----------------------------'''
 def generate():
     assert FLAGS.pretrain is not None, "set model weight by --pretrain [model]"
 
@@ -72,7 +74,7 @@ def generate():
     net_G.eval()
 
     counter = 0
-    os.makedirs(FLAGS.output)
+    os.makedirs(FLAGS.output, exist_ok=True)
     with torch.no_grad():
         for start in trange(
                 0, FLAGS.num_images, FLAGS.batch_size, dynamic_ncols=True):
@@ -85,7 +87,7 @@ def generate():
                     image, os.path.join(FLAGS.output, '%d.png' % counter))
                 counter += 1
 
-
+'''----------------------------计算GP----------------------------'''
 def cacl_gradient_penalty(net_D, real, fake):
     t = torch.rand(real.size(0), 1, 1, 1).to(real.device)
     t = t.expand(real.size())
@@ -102,7 +104,7 @@ def cacl_gradient_penalty(net_D, real, fake):
     loss_gp = torch.mean((grad_norm - 1) ** 2)
     return loss_gp
 
-
+'''----------------------------训练过程----------------------------'''
 def train():
     if FLAGS.dataset == 'cifar10':
         dataset = datasets.CIFAR10(
@@ -112,6 +114,17 @@ def train():
                 transforms.ToTensor(),
                 transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
             ]))
+        testset = datasets.CIFAR10(
+            './dataset/cifar10', train=False, download=False,
+            transform=transforms.Compose([
+                transforms.RandomHorizontalFlip(),
+                transforms.ToTensor(),
+                transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+            ]))
+        testimg = []
+        for i in range(len(testset)):
+            testimg.append(np.array(testset[i][0]))
+        testimg = np.array(testimg)
     if FLAGS.dataset == 'stl10':
         dataset = datasets.STL10(
             './dataset/stl10', split='unlabeled', download=True,
@@ -137,7 +150,7 @@ def train():
     sched_D = optim.lr_scheduler.LambdaLR(
         optim_D, lambda step: 1 - step / FLAGS.total_steps)
 
-    os.makedirs(os.path.join(FLAGS.logdir, 'sample'))
+    os.makedirs(os.path.join(FLAGS.logdir, 'sample'), exist_ok=True)
     writer = SummaryWriter(os.path.join(FLAGS.logdir))
     sample_z = torch.randn(FLAGS.sample_size, FLAGS.z_dim).to(device)
     with open(os.path.join(FLAGS.logdir, "flagfile.txt"), 'w') as f:
@@ -206,7 +219,7 @@ def train():
                         net_G, device, FLAGS.z_dim,
                         FLAGS.num_images, FLAGS.batch_size)
                     IS, FID = get_inception_score_and_fid(
-                        imgs, FLAGS.fid_cache, verbose=True)
+                        imgs, testimg, verbose=True)
                     pbar.write(
                         "%s/%s Inception Score: %.3f(%.5f), "
                         "FID Score: %6.3f" % (

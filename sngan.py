@@ -1,5 +1,4 @@
 import os
-
 import torch
 import torch.optim as optim
 from absl import flags, app
@@ -13,7 +12,7 @@ import source.models.sngan as models
 import source.losses as losses
 from source.utils import generate_imgs, infiniteloop, set_seed
 
-
+'''----------------------------默认训练环境----------------------------'''
 net_G_models = {
     'res32': models.ResGenerator32,
     'res48': models.ResGenerator48,
@@ -62,9 +61,9 @@ flags.DEFINE_string('pretrain', None, 'path to test model')
 flags.DEFINE_string('output', './outputs', 'path to output dir')
 flags.DEFINE_integer('num_images', 50000, 'the number of generated images')
 
-device = torch.device('cuda:0')
+device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
-
+'''----------------------------生成图片----------------------------'''
 def generate():
     assert FLAGS.pretrain is not None, "set model weight by --pretrain [model]"
 
@@ -73,7 +72,7 @@ def generate():
     net_G.eval()
 
     counter = 0
-    os.makedirs(FLAGS.output)
+    os.makedirs(FLAGS.output, exist_ok=True)
     with torch.no_grad():
         for start in trange(
                 0, FLAGS.num_images, FLAGS.batch_size, dynamic_ncols=True):
@@ -86,7 +85,7 @@ def generate():
                     image, os.path.join(FLAGS.output, '%d.png' % counter))
                 counter += 1
 
-
+'''----------------------------训练过程----------------------------'''
 def train():
     if FLAGS.dataset == 'cifar10':
         dataset = datasets.CIFAR10(
@@ -121,7 +120,7 @@ def train():
     sched_D = optim.lr_scheduler.LambdaLR(
         optim_D, lambda step: 1 - step / FLAGS.total_steps)
 
-    os.makedirs(os.path.join(FLAGS.logdir, 'sample'))
+    os.makedirs(os.path.join(FLAGS.logdir, 'sample'), exist_ok=True)
     writer = SummaryWriter(os.path.join(FLAGS.logdir))
     sample_z = torch.randn(FLAGS.sample_size, FLAGS.z_dim).to(device)
     with open(os.path.join(FLAGS.logdir, "flagfile.txt"), 'w') as f:
@@ -197,14 +196,13 @@ def train():
                     writer.add_scalar('FID', FID, step)
     writer.close()
 
-
+'''----------------------------运行+随机数种子----------------------------'''
 def main(argv):
     set_seed(FLAGS.seed)
     if FLAGS.generate:
         generate()
     else:
         train()
-
 
 if __name__ == '__main__':
     app.run(main)

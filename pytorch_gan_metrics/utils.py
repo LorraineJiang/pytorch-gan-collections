@@ -32,7 +32,8 @@ class ImageDataset(Dataset):
 
 def get_inception_score_and_fid(
     images: Union[List[torch.FloatTensor], DataLoader],
-    fid_stats_path: str,
+    # fid_stats_path: str,
+    testimg: np.array,
     splits: int = 10,
     use_torch: bool = False,
     **kwargs,
@@ -44,7 +45,8 @@ def get_inception_score_and_fid(
     Args:
         images: List of tensor or torch.utils.data.Dataloader. The return image
                 must be float tensor of range [0, 1].
-        fid_stats_path: str, Path to pre-calculated statistic
+        # fid_stats_path: str, Path to pre-calculated statistic
+        testimg: np.array, real test data.
         splits: The number of bins of Inception Score. Default is 10.
         use_torch: bool. The default value is False and the backend is same as
                    official implementation, i.e., numpy. If use_torch is
@@ -64,9 +66,11 @@ def get_inception_score_and_fid(
     inception_score, std = calculate_inception_score(probs, splits, use_torch)
 
     # Frechet Inception Distance
-    f = np.load(fid_stats_path)
-    mu, sigma = f['mu'][:], f['sigma'][:]
-    f.close()
+    # f = np.load(fid_stats_path)
+    # mu, sigma = f['mu'][:], f['sigma'][:]
+    pixels = testimg.reshape(-1,2048)
+    mu = np.mean(pixels, axis=0)
+    sigma = np.cov(pixels, rowvar=False)
     fid = calculate_frechet_inception_distance(acts, mu, sigma, use_torch)
 
     return (inception_score, std), fid
@@ -74,7 +78,8 @@ def get_inception_score_and_fid(
 
 def get_inception_score_and_fid_from_directory(
     path: str,
-    fid_stats_path: str,
+    # fid_stats_path: str,
+    testimg: np.array,
     exts: List[str] = ['png', 'jpg'],
     batch_size: int = 50,
     splits: int = 10,
@@ -96,14 +101,15 @@ def get_inception_score_and_fid_from_directory(
     """
     return get_inception_score_and_fid(
         images=DataLoader(ImageDataset(path, exts), batch_size=batch_size),
-        fid_stats_path=fid_stats_path,
+        testimg=testimg,
         splits=splits,
         use_torch=use_torch, **kwargs)
 
 
 def get_fid(
     images: Union[List[torch.FloatTensor], DataLoader],
-    fid_stats_path: str,
+    # fid_stats_path: str,
+    testimg: np.array,
     use_torch: bool = False,
     **kwargs,
 ) -> Tuple[Tuple[float, float], float]:
@@ -118,9 +124,11 @@ def get_fid(
         images, dims=[2048], use_torch=use_torch, **kwargs)
 
     # Frechet Inception Distance
-    f = np.load(fid_stats_path)
-    mu, sigma = f['mu'][:], f['sigma'][:]
-    f.close()
+    # f = np.load(fid_stats_path)
+    # mu, sigma = f['mu'][:], f['sigma'][:]
+    pixels = testimg.reshape(-1,2048)
+    mu = np.mean(pixels, axis=0)
+    sigma = np.cov(pixels, rowvar=False)
     fid = calculate_frechet_inception_distance(acts, mu, sigma, use_torch)
 
     return fid
@@ -128,7 +136,8 @@ def get_fid(
 
 def get_fid_from_directory(
     path: str,
-    fid_stats_path: str,
+    # fid_stats_path: str,
+    testimg: np.array,
     exts: List[str] = ['png', 'jpg'],
     batch_size: int = 50,
     use_torch: bool = False,
@@ -148,7 +157,7 @@ def get_fid_from_directory(
     """
     return get_fid(
         images=DataLoader(ImageDataset(path, exts), batch_size=batch_size),
-        fid_stats_path=fid_stats_path,
+        testimg=testimg,
         use_torch=use_torch,
         **kwargs)
 
